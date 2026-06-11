@@ -1,0 +1,40 @@
+{
+  "name": "filesystem_mcp",
+  "description": "Provides tools for reading and writing files on the local filesystem.",
+  "version": "1.0.0",
+  "command": ["node", "build/index.js"],
+  "tools": [
+    {
+      "name": "read_file",
+      "description": "Read the contents of a file at the specified path.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "The absolute or relative path to the file."
+          }
+        },
+        "required": ["path"]
+      }
+    },
+    {
+      "name": "write_file",
+      "description": "Write contents to a file at the specified path.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "The absolute or relative path to the file."
+          },
+          "content": {
+            "type": "string",
+            "description": "The content to write to the file."
+          }
+        },
+        "required": ["path", "content"]
+      }
+    }
+  ]
+}
