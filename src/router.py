@@ -62,6 +62,7 @@ def launch_mcp_server(manifest: Dict[str, Any]) -> Optional[subprocess.Popen]:
             stderr=subprocess.PIPE,
             text=True,
             encoding="utf-8",
+            errors="replace",  # Защита от сбоев декодирования на границах буфера
             creationflags=creation_flags,
             cwd=Path(manifest["_source_path"]).parent
         )

@@ -3,6 +3,7 @@
 Главная точка входа standalone MCP-сервера (Phoenix Architecture).
 Инициализирует FastMCP, загружает манифесты и динамически регистрирует инструменты с PASH-сжатием.
 """
+import json
 import logging
 import sys
 from pathlib import Path
@@ -50,46 +51,58 @@ def create_tool_wrapper(manifest_name: str, tool_def: dict):
     """
     tool_name = tool_def.get("name", "unknown_tool")
     tool_desc = tool_def.get("description", "No description provided.")
-    
-    # Получаем входные параметры из схемы, если она есть
+
+    # Проверяем, есть ли входные параметры
     input_schema = tool_def.get("inputSchema", {})
     properties = input_schema.get("properties", {})
-    
-    # Формируем сигнатуру функции с дефолтными значениями из примеров или дефолтов
-    # Для упрощения используем **kwargs, но документируем параметры
-    def tool_wrapper(**kwargs):
-        try:
-            # Находим манифест по имени
-            target_manifest = next(
-                (m for m in registered_manifests if m.get("name") == manifest_name), 
-                None
-            )
-            if not target_manifest:
-                return {"error": f"Манифест {manifest_name} не найден"}
-            
-            process = get_or_start_process(target_manifest)
-            raw_result = proxy_call(process, tool_name, kwargs)
-            
-            # Применяем PASH-сжатие
-            compressed_result = compressor.compress(raw_result)
-            
-            return {
-                "pash_data": compressed_result["pash"],
-                "raw_hash": compressed_result["raw_hash"],
-                "compressed": compressed_result["compressed"]
-            }
-        except Exception as e:
-            logger.error(f"Ошибка при выполнении инструмента {tool_name}: {e}")
-            return {"error": str(e)}
+
+    if properties:
+        # Если есть параметры, используем **kwargs (упрощенно)
+        def tool_wrapper(**kwargs):
+            return _execute_tool(manifest_name, tool_name, kwargs)
+    else:
+        # Если параметров нет, создаем функцию без аргументов, чтобы FastMCP не требовал kwargs
+        def tool_wrapper():
+            return _execute_tool(manifest_name, tool_name, {})
 
     # Настраиваем метаданные функции для FastMCP
     tool_wrapper.__name__ = tool_name
     tool_wrapper.__doc__ = tool_desc
-    
-    # Динамически добавляем аннотации типов для красивого отображения в клиенте (опционально)
-    # Здесь оставим **kwargs для универсальности, так как схемы могут быть сложными
-    
+
     return tool_wrapper
+
+
+def _execute_tool(manifest_name: str, tool_name: str, kwargs: dict):
+    """Реальная логика выполнения инструмента."""
+    try:
+        # Находим манифест по имени
+        target_manifest = next(
+            (m for m in registered_manifests if m.get("name") == manifest_name),
+            None
+        )
+        if not target_manifest:
+            return {"error": f"Манифест {manifest_name} не найден"}
+
+        process = get_or_start_process(target_manifest)
+        raw_result = proxy_call(process, tool_name, kwargs)
+
+        # Применяем PASH-сжатие
+        compressed_result = compressor.compress(raw_result)
+
+        # Честные замеры размеров для демо-бенчмарков
+        raw_str = json.dumps(raw_result, ensure_ascii=False) if not isinstance(raw_result, str) else raw_result
+        pash_str = json.dumps(compressed_result["pash"], ensure_ascii=False) if not isinstance(compressed_result["pash"], str) else str(compressed_result["pash"])
+
+        return {
+            "raw_size_bytes": len(raw_str.encode('utf-8')),
+            "pash_size_bytes": len(pash_str.encode('utf-8')),
+            "pash_data": compressed_result["pash"],
+            "raw_hash": compressed_result["raw_hash"],
+            "compressed": compressed_result["compressed"]
+        }
+    except Exception as e:
+        logger.error(f"Ошибка при выполнении инструмента {tool_name}: {e}")
+        return {"error": str(e)}
 
 
 # Глобальная переменная для хранения просканированных манифестов

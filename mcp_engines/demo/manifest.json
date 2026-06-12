@@ -1,0 +1,19 @@
+{
+  "name": "demo_benchmarks",
+  "description": "Демо-инструменты для замера PASH-сжатия",
+  "command": ["python", "demo_server.py"],
+  "tools": [
+    {
+      "name": "demo_github_repo",
+      "description": "Возвращает объемный список фиктивных репозиториев GitHub для теста сжатия"
+    },
+    {
+      "name": "demo_filesystem_search",
+      "description": "Возвращает объемные результаты поиска по файловой системе для теста сжатия"
+    },
+    {
+      "name": "demo_web_scraping",
+      "description": "Возвращает объемный текст веб-статьи для теста сжатия"
+    }
+  ]
+}

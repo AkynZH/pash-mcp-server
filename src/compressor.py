@@ -69,9 +69,9 @@ class AdaptivePashCompressor:
             rows = [[item[k] for k in row_keys] for item in v]
             return {"_u": short_uniform, "_k": short_row_keys, "_v": rows}
         else:
-            # Стандартное сжатие в массив массивов (без унифицированных значений)
-            short_keys = [self.key_map.get(key, key[:3]) for key in keys]
-            return [short_keys] + [[item[key] for key in keys] for item in v]
+            # Если элементов мало, выгоднее просто сжать каждый словарь индивидуально,
+            # что также гарантирует рекурсивное сжатие вложенных структур (например, JSON-строк).
+            return [self._compress_dict(item) if isinstance(item, dict) else item for item in v]
 
     def _compress_dict(self, d: Dict) -> Dict:
         """Рекурсивное сжатие словаря с заменой ключей и оптимизацией списков."""
@@ -82,6 +82,16 @@ class AdaptivePashCompressor:
                 compressed[short_key] = self._compress_dict(v)
             elif isinstance(v, list):
                 compressed[short_key] = self._compress_list(v)
+            elif isinstance(v, str):
+                # Попытка распарсить и сжать большие JSON-строки (частый кейс для MCP text полей)
+                if len(v) > self.min_size_threshold and (v.startswith('{') or v.startswith('[')):
+                    try:
+                        parsed = json.loads(v)
+                        compressed[short_key] = self._compress_dict(parsed) if isinstance(parsed, dict) else self._compress_list(parsed)
+                    except json.JSONDecodeError:
+                        compressed[short_key] = v
+                else:
+                    compressed[short_key] = v
             else:
                 compressed[short_key] = v
         return compressed
