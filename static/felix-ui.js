@@ -101,7 +101,7 @@ function appendEvent(elementId, data, type) {
     const container = document.getElementById(elementId);
     if (!container) return;
 
-    // Пропускаем keepalive (пустые сообщения или только ":")
+    // Пропускаем keepalive
     if (!data || (typeof data === 'object' && Object.keys(data).length === 0)) {
         return;
     }
@@ -111,23 +111,44 @@ function appendEvent(elementId, data, type) {
     
     const timeDiv = document.createElement('div');
     timeDiv.className = 'event-time';
-    const timestamp = data.timestamp ? new Date(data.timestamp * 1000).toLocaleTimeString() : new Date().toLocaleTimeString();
-    timeDiv.textContent = `[${timestamp}] ${data.type || 'event'}`;
+    const timestamp = data.id ? `ID:${data.id}` : new Date().toLocaleTimeString();
     
+    // ГИБКИЙ ПАРСИНГ СОБЫТИЙ (ACP Qwen + Felix)
+    // Защита от UNKNOWN и отсутствующих полей type
+    let sessionUpdateType = data.type || data.data?.update?.sessionUpdate || "system";
+    let textContent = data.data?.update?.content?.text || data.content?.text || data.message || "";
+    let toolName = data.data?.update?.name || data.name || "N/A";
+
+    timeDiv.textContent = `[${timestamp}] ${sessionUpdateType.toUpperCase()}`;
+
     const dataDiv = document.createElement('div');
     dataDiv.className = 'event-data';
-    dataDiv.textContent = JSON.stringify(data, null, 2);
+
+    // Форматируем вывод для читаемости в UI
+    let displayText = "";
+    if (sessionUpdateType.includes("tool") || toolName !== "N/A") {
+        displayText = `🛠️ TOOL: ${toolName}\n📝 PAYLOAD:\n${JSON.stringify(data.data?.update || data, null, 2)}`;
+    } else if (textContent) {
+        displayText = `💬 TEXT: ${textContent}`;
+    } else {
+        // Fallback: показываем сокращенную версию объекта, если это не системное сообщение
+        if (sessionUpdateType === 'system' || sessionUpdateType === 'session_update') {
+            displayText = "⚙️ Системное обновление сессии";
+        } else {
+            const jsonStr = JSON.stringify(data, null, 2);
+            displayText = jsonStr.length > 500 ? jsonStr.substring(0, 500) + '...' : jsonStr;
+        }
+    }
+    
+    dataDiv.textContent = displayText;
 
     eventDiv.appendChild(timeDiv);
     eventDiv.appendChild(dataDiv);
     container.appendChild(eventDiv);
 
-    // Ограничение количества элементов
     while (container.children.length > MAX_EVENTS) {
         container.removeChild(container.firstChild);
     }
-
-    // Автопрокрутка вниз
     container.scrollTop = container.scrollHeight;
 }
 

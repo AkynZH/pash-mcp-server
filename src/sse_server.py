@@ -165,6 +165,44 @@ async def push_felix_event(event: dict):
     await felix_events_queue.put(event)
     return {"status": "ok", "message": "Felix event queued"}
 
+@app.post("/api/push_qwen")
+async def push_qwen_event(payload: dict):
+    """Отправка задачи в qwen serve через активную сессию Odysseus Bridge."""
+    task = payload.get("task") or payload.get("message") or payload.get("prompt", "")
+    if not task:
+        raise HTTPException(status_code=400, detail="Task/message is required")
+
+    session_id = qwen_session_state.get("session_id")
+    if not session_id:
+        raise HTTPException(status_code=400, detail="Qwen session not initialized. Call /api/qwen/connect first.")
+
+    qwen_host = "127.0.0.1"
+    qwen_port = 8769
+    base_url = f"http://{qwen_host}:{qwen_port}"
+
+    # Формат ACP для отправки промпта: массив блоков контента
+    req_payload = {
+        "prompt": [{"type": "text", "text": str(task)}]
+    }
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{base_url}/session/{session_id}/prompt",
+                json=req_payload,
+                timeout=10.0
+            )
+            response.raise_for_status()
+            result = response.json()
+            logger.info(f"[OdysseusBridge] Промпт отправлен в сессию {session_id}, promptId: {result.get('promptId')}")
+            return {"status": "ok", "message": "Task sent to Qwen", "prompt_id": result.get("promptId")}
+    except httpx.HTTPStatusError as e:
+        logger.error(f"[OdysseusBridge] HTTP Error sending prompt: {e.response.text}")
+        raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+    except Exception as e:
+        logger.error(f"[OdysseusBridge] Ошибка отправки промпта: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/health")
 async def health():
     """Проверка здоровья сервера и статуса моста."""
