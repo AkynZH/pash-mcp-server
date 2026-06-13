@@ -42,10 +42,10 @@ def test_health_endpoint_shows_bridge_state():
     assert "is_polling" in data["odysseus_bridge"]
     assert "session_id" in data["odysseus_bridge"]
 
-@patch('sse_server._poll_qwen_sse') # Мокаем фоновую задачу, чтобы она не блокировала event loop синхронным urllib
+@patch('sse_server._poll_qwen_sse') # Мокаем фоновую задачу асинхронного стриминга
 @patch('urllib.request.urlopen')
 def test_qwen_connect_success(mock_urlopen, mock_poll_task):
-    """Проверка успешного создания сессии и инициации опроса через Odysseus Bridge."""
+    """Проверка успешного создания сессии и инициации асинхронного стриминга через Odysseus Bridge."""
     # Мокаем ответ qwen serve на создание сессии
     mock_response = MagicMock()
     mock_response.status = 200

@@ -9,6 +9,7 @@ import json
 import logging
 import urllib.request
 import urllib.error
+import httpx
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
@@ -113,46 +114,50 @@ async def connect_qwen(payload: dict):
 
 async def _poll_qwen_sse(base_url: str):
     """
-    Фоновая задача опроса событий Qwen (OdysseusBridge.get_events logic).
-    Использует короткие запросы с таймаутом 3 сек (short-poll SSE compromise для zero-dependency).
-    Поддерживает Last-Event-ID для корректного продолжения.
+    Фоновая задача ИСТИННОГО асинхронного SSE-стриминга (Odysseus Bridge v1.2).
+    Использует httpx с timeout=None для удержания единого долгоживущего соединения.
+    Читает чанки по мере их поступления, исключая потерю событий между опросами.
+    Поддерживает Last-Event-ID для корректного восстановления при обрыве соединения.
     """
     session_id = qwen_session_state["session_id"]
     url = f"{base_url}/session/{session_id}/events"
     
-    logger.info(f"[OdysseusBridge] Запуск фонового опроса SSE: {url}")
+    logger.info(f"[OdysseusBridge] Запуск асинхронного SSE-стриминга: {url}")
     
     while qwen_session_state["is_polling"]:
-        req = urllib.request.Request(url, method="GET")
+        headers = {}
         if qwen_session_state["last_event_id"]:
-            req.add_header("Last-Event-ID", qwen_session_state["last_event_id"])
+            headers["Last-Event-ID"] = qwen_session_state["last_event_id"]
             
         try:
-            with urllib.request.urlopen(req, timeout=3) as response:
-                if response.status == 200:
-                    raw = response.read().decode('utf-8')
-                    for block in raw.strip().split('\n\n'):
-                        if block.startswith('data: '):
+            # timeout=None держит соединение открытым indefinitely для истинного стриминга
+            async with httpx.AsyncClient(timeout=httpx.Timeout(None)) as client:
+                async with client.stream("GET", url, headers=headers) as response:
+                    response.raise_for_status()
+                    async for line in response.aiter_lines():
+                        if not qwen_session_state["is_polling"]:
+                            break
+                        if line.startswith("data: "):
                             try:
-                                event_data = json.loads(block[6:])
-                                # Извлекаем ID события, если он есть, для следующего запроса
+                                event_data = json.loads(line[6:])
                                 if isinstance(event_data, dict) and "id" in event_data:
-                                    qwen_session_state["last_event_id"] = event_data["id"]
-                                
+                                    qwen_session_state["last_event_id"] = str(event_data["id"])
                                 await qwen_events_queue.put(event_data)
                             except json.JSONDecodeError:
-                                # Если это не JSON, передаем как есть (например, keepalive)
-                                await qwen_events_queue.put({"raw_data": block[6:]})
-        except urllib.error.URLError as e:
-            # Таймаут при ожидании событий — нормальное поведение SSE short-poll, не считаем разрывом
-            pass
+                                await qwen_events_queue.put({"raw_data": line[6:]})
+                        elif line.startswith("id: "):
+                            # Альтернативный источник ID события из заголовка SSE
+                            qwen_session_state["last_event_id"] = line[4:].strip()
+        except httpx.ReadTimeout:
+            pass # Ожидается при некоторых конфигурациях, продолжаем цикл
+        except httpx.ReadError as e:
+            logger.warning(f"[OdysseusBridge] SSE соединение разорвано: {e}. Переподключение через 1с...")
+            await asyncio.sleep(1) # Экспоненциальная задержка перед переподключением
         except Exception as e:
-            logger.warning(f"[OdysseusBridge] Ошибка чтения событий: {e}")
-            # Если демон убит (fail-fast ~0.5s), мы получим здесь ConnectionRefused и продолжим цикл,
-            # пока is_polling не станет False или не будет предпринята попытка переподключения.
-            await asyncio.sleep(1) # Небольшая пауза перед следующей попыткой, чтобы не спамить
+            logger.error(f"[OdysseusBridge] Критическая ошибка SSE-стриминга: {e}")
+            await asyncio.sleep(1)
             
-    logger.info("[OdysseusBridge] Фоновый опрос остановлен.")
+    logger.info("[OdysseusBridge] Асинхронный SSE-стриминг остановлен.")
 
 @app.post("/api/push_felix")
 async def push_felix_event(event: dict):
