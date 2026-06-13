@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Felix & Qwen SSE Monitor (4-Zone UI)</title>
+    <style>
+        :root {
+            --bg-color: #1e1e1e;
+            --text-color: #d4d4d4;
+            --accent-felix: #4caf50;
+            --accent-qwen: #2196f3;
+            --panel-bg: #252526;
+            --border-color: #3e3e42;
+        }
+        body {
+            margin: 0;
+            padding: 10px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 10px;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+        .zone {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .zone-header {
+            padding: 8px 12px;
+            font-weight: bold;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .zone-header.felix { color: var(--accent-felix); }
+        .zone-header.qwen { color: var(--accent-qwen); }
+        
+        .zone-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            font-size: 13px;
+            display: flex;
+            flex-direction: column;
+        }
+        .event-item {
+            padding: 6px;
+            margin-bottom: 6px;
+            background-color: #2d2d30;
+            border-left: 3px solid #555;
+            border-radius: 4px;
+            word-wrap: break-word;
+        }
+        .event-item.felix { border-left-color: var(--accent-felix); }
+        .event-item.qwen { border-left-color: var(--accent-qwen); }
+        .event-time { font-size: 11px; color: #888; margin-bottom: 4px; }
+        .event-data { white-space: pre-wrap; }
+        
+        /* Controls Zone */
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 10px;
+        }
+        textarea {
+            flex: 1;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 8px;
+            font-family: inherit;
+            resize: none;
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            color: white;
+        }
+        .btn-felix { background-color: var(--accent-felix); }
+        .btn-felix:hover { background-color: #45a049; }
+        .btn-qwen { background-color: var(--accent-qwen); }
+        .btn-qwen:hover { background-color: #1976d2; }
+        .btn-clear { background-color: #f44336; }
+        .btn-clear:hover { background-color: #d32f2f; }
+
+        /* Status Zone */
+        .status-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            padding: 10px;
+        }
+        .status-card {
+            background-color: #2d2d30;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .status-value {
+            font-size: 24px;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        .status-ok { color: var(--accent-felix); }
+        .status-err { color: #f44336; }
+
+        .log-entry {
+            font-size: 12px;
+            color: #aaa;
+            margin-bottom: 4px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 2px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Zone 1: Qwen Code Stream -->
+    <div class="zone">
+        <div class="zone-header qwen">
+            <span>🔵 Qwen Code Stream (SSE)</span>
+            <button class="btn-clear" style="flex: 0; padding: 4px 8px;" onclick="clearZone('qwen-log')">Clear</button>
+        </div>
+        <div class="zone-content" id="qwen-log"></div>
+    </div>
+
+    <!-- Zone 2: Felix Agent Stream -->
+    <div class="zone">
+        <div class="zone-header felix">
+            <span>🟢 Felix Agent Stream (CognitiveLoop)</span>
+            <button class="btn-clear" style="flex: 0; padding: 4px 8px;" onclick="clearZone('felix-log')">Clear</button>
+        </div>
+        <div class="zone-content" id="felix-log"></div>
+    </div>
+
+    <!-- Zone 3: Controls & Input -->
+    <div class="zone">
+        <div class="zone-header">
+            <span>🎛️ Управление и Ввод</span>
+        </div>
+        <div class="zone-content controls">
+            <textarea id="command-input" placeholder="Введите команду или JSON-пейлоад для отправки..."></textarea>
+            <div class="btn-group">
+                <button class="btn-felix" onclick="sendCommand('felix')">Отправить в Felix</button>
+                <button class="btn-qwen" onclick="sendCommand('qwen')">Отправить в Qwen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Zone 4: System Status & Logs -->
+    <div class="zone">
+        <div class="zone-header">
+            <span>📊 Статус системы и Журнал</span>
+        </div>
+        <div class="zone-content">
+            <div class="status-grid">
+                <div class="status-card">
+                    <div>Qwen SSE</div>
+                    <div class="status-value status-ok" id="status-qwen">Подключено</div>
+                </div>
+                <div class="status-card">
+                    <div>Felix SSE</div>
+                    <div class="status-value status-ok" id="status-felix">Подключено</div>
+                </div>
+            </div>
+            <div id="system-log" style="margin-top: 15px; flex: 1; overflow-y: auto;"></div>
+        </div>
+    </div>
+
+    <script src="/static/felix-ui.js"></script>
+</body>
+</html>
