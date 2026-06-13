@@ -10,6 +10,15 @@
 - **PASH Compression**: Интеллектуальное сжатие тяжелых JSON-ответов (экономия >80% токенов) с прозрачным возвратом хэша.
 - **Zero-config запуск**: Работает через `stdio` с конфигурацией через `.env`.
 
+## Architecture Boundaries
+
+**Felix MCP Standalone** is a self-contained product. It shares **principles, not code** with the internal Felix core (`C:\Users\53\Felix`).
+
+- **Product Judge** (in `src/product_judge.py`) is an independent implementation of deterministic validation. It shares the principle of "structural validation before output" with the internal Mirror Forge Synthesis, but has zero shared code by design. This is intentional technical debt prevention.
+- **Cognitive Loop and PASH compression** are implemented directly in this repository. They do not import from or depend on the internal Felix core. This ensures the product can be deployed, tested, and maintained independently.
+
+**Why this matters:** When you install this package, you get a complete, autonomous system. No hidden dependencies on internal infrastructure.
+
 ## Установка
 
 ```bash
