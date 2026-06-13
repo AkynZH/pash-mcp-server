@@ -60,5 +60,13 @@ felix-mcp-standalone/
 └── tests/                     # Изолированные тесты
 ```
 
+## Odysseus Integration Status
+
+This repository serves as the cognitive core designed to be paired with an interface like Odysseus.
+- ✅ **Completed & Shipped:** Cognitive Loop, PASH compression, Product Judge, and heuristic routing are fully implemented and tested.
+- 🗺️ **Roadmap:** Native, one-click UI integration with the Odysseus agent (combining local reflexes with this cognitive core) is currently in active development. 
+
+*We believe in shipping what works and clearly labeling what is being built.*
+
 ## Лицензия
 MIT License (c) 2026 AkynZH

@@ -1,5 +1,12 @@
 # Сравнительный бенчмарк итераций: Наш Цикл vs Наивный Агент
 
+## METHODOLOGY DISCLAIMER
+
+To ensure absolute transparency, we separate our baseline metrics into two categories:
+
+- **Token/Cost Metrics (Physical Calculation):** Calculated deterministically based on raw file sizes (e.g., 100KB raw log ≈ 25,000 tokens at 4 chars/token). This represents the exact token cost of the **Naive Raw Context** pattern: feeding uncompressed content directly into an LLM without DAG decomposition or PASH transport.
+- **Iteration Metrics (Empirical Estimate):** The "4 iterations" baseline for the naive agent is a **behavioral estimation**, not a live execution of LangGraph/CrewAI. It is based on observed LLM context-overflow patterns ("Needle in a Haystack" degradation). When raw context exceeds ~8K tokens, standard agents typically require 3–5 clarification iterations due to lost focus. We use 4 as a conservative baseline.
+
 **Примечание:** Данные получены алгоритмически на основе реальных размеров выходных данных инструментов
 и детерминированной эвристики поведения LLM. Никакой ручной подгонки результатов.
 
