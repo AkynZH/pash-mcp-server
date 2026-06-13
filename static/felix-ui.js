@@ -9,12 +9,44 @@ let qwenEventSource = null;
 let felixEventSource = null;
 
 // Инициализация при загрузке страницы
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     logSystem('Инициализация UI...');
+    
+    // 1. Сначала инициализируем реальный мост к qwen serve (Odysseus Bridge)
+    await initializeQwenBridge();
+    
+    // 2. Затем подключаем SSE-стримы
     connectQwenStream();
     connectFelixStream();
     checkHealth();
 });
+
+async function initializeQwenBridge() {
+    logSystem('Инициализация Odysseus Bridge: запрос сессии у qwen serve...');
+    try {
+        // Используем текущую директорию или стандартный путь как workspace
+        const payload = {
+            cwd: "D:\\Felix\\projects\\felix-mcp-standalone",
+            host: "127.0.0.1",
+            port: 8769 // Порт по умолчанию для qwen serve
+        };
+        
+        const response = await fetch('/api/qwen/connect', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        const result = await response.json();
+        if (result.status === 'ok') {
+            logSystem(`✅ Qwen Bridge активирован. Сессия: ${result.session_id}`);
+        } else {
+            logSystem(`⚠️ Ошибка активации Qwen Bridge: ${result.message}. Убедитесь, что qwen serve запущен на порту 8769.`);
+        }
+    } catch (error) {
+        logSystem(`⚠️ Не удалось подключиться к qwen serve: ${error.message}. Запускаю в демо-режиме (если сервер недоступен).`);
+    }
+}
 
 function connectQwenStream() {
     updateStatus('status-qwen', 'Подключение...', 'status-warn');
