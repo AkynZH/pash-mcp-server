@@ -10,6 +10,9 @@
 - **PASH Compression**: Интеллектуальное сжатие тяжелых JSON-ответов (экономия >80% токенов) с прозрачным возвратом хэша.
 - **Zero-config запуск**: Работает через `stdio` с конфигурацией через `.env`.
 
+## ⚠️ Безопасность и Runtime
+Для разработчиков, вносящих изменения в серверную часть (`sse_server.py`, тесты): строго соблюдайте паттерн **[Surgical Process Cleanup by Port](docs/RUNTIME_SAFETY.md)**. Глобальное убийство процессов (`taskkill /IM`) категорически запрещено, так как оно обрывает агентскую сессию.
+
 ## Architecture Boundaries
 
 **Felix MCP Standalone** is a self-contained product. It shares **principles, not code** with the internal Felix core (`C:\Users\53\Felix`).
