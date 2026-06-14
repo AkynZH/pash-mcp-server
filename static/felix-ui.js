@@ -21,30 +21,44 @@ document.addEventListener('DOMContentLoaded', async () => {
     checkHealth();
 });
 
+let currentQwenWorkspace = "Неизвестно";
+let currentQwenPort = "Неизвестно";
+
 async function initializeQwenBridge() {
-    logSystem('Инициализация Odysseus Bridge: запрос сессии у qwen serve...');
+    logSystem('Инициализация Felix Gateway Runtime: запрос сессии...');
     try {
-        // Используем текущую директорию или стандартный путь как workspace
-        const payload = {
-            cwd: "D:\\Felix\\projects\\felix-mcp-standalone",
-            host: "127.0.0.1",
-            port: 8769 // Порт по умолчанию для qwen serve
-        };
-        
+        // Продуктовый подход: фронтенд НЕ знает cwd, host, port.
+        // Бэкенд сам определяет рабочее пространство и управляет демонами.
         const response = await fetch('/api/qwen/connect', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({}) // Отправляем пустой JSON, как要求在 ТЗ
         });
-        
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            if (response.status === 400 && errorText.includes('workspace_mismatch')) {
+                logSystem(`🚨 КРИТИЧЕСКАЯ ОШИБКА: Несоответствие рабочего пространства!`);
+                logSystem(`   ${errorText}`);
+                updateStatus('status-qwen', 'Ошибка: workspace_mismatch', 'status-err');
+                return;
+            }
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
+
         const result = await response.json();
         if (result.status === 'ok') {
-            logSystem(`✅ Qwen Bridge активирован. Сессия: ${result.session_id}`);
+            currentQwenWorkspace = result.workspace;
+            currentQwenPort = result.port;
+            logSystem(`✅ Gateway активирован. Сессия: ${result.session_id}`);
+            updateStatus('status-qwen', `Подключено | WS: ${result.workspace} | Порт: ${result.port}`, 'status-ok');
         } else {
-            logSystem(`⚠️ Ошибка активации Qwen Bridge: ${result.message}. Убедитесь, что qwen serve запущен на порту 8769.`);
+            logSystem(`⚠️ Ошибка активации Gateway: ${result.message}.`);
+            updateStatus('status-qwen', 'Ошибка активации', 'status-err');
         }
     } catch (error) {
-        logSystem(`⚠️ Не удалось подключиться к qwen serve: ${error.message}. Запускаю в демо-режиме (если сервер недоступен).`);
+        logSystem(`⚠️ Не удалось подключиться к Gateway: ${error.message}.`);
+        updateStatus('status-qwen', 'Ошибка подключения', 'status-err');
     }
 }
 

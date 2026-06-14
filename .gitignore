@@ -12,3 +12,6 @@ build/
 htmlcov/
 .DS_Store
 debug*.log
+*.log
+qwen_daemon_*.log
+uvicorn_debug.log
