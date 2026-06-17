@@ -5,7 +5,8 @@
   "version": "1.0.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/AkynZH/pash-mcp-server"
+    "url": "https://github.com/AkynZH/pash-mcp-server",
+    "source": "github"
   },
   "packages": [
     {
