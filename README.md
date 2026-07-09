@@ -25,8 +25,8 @@
 ## Установка
 
 ```bash
-git clone https://github.com/AkynZH/felix-mcp-standalone.git
-cd felix-mcp-standalone
+git clone https://github.com/AkynZH/pash-mcp-server.git
+cd pash-mcp-server
 pip install -e .
 ```
 
@@ -52,7 +52,7 @@ python server.py
 
 ## Структура проекта
 ```
-felix-mcp-standalone/
+pash-mcp-server/
 ├── server.py                  # Точка входа (FastMCP)
 ├── src/
 │   ├── config.py              # Pydantic-конфигурация

@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "felix-mcp-standalone"
+name = "pash-mcp-server"
 version = "1.0.0"
 description = "Standalone MCP Server with PASH Compression (Phoenix Architecture)"
 readme = "README.md"
