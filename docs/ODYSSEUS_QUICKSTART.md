@@ -7,7 +7,7 @@
 1. Откройте **PowerShell** (можно без прав администратора, если Python установлен для текущего пользователя).
 2. Перейдите в директорию проекта:
    ```powershell
-   cd D:\Felix\projects\felix-mcp-standalone
+   cd pash-mcp-server
    ```
 3. Запустите скрипт инициализации:
    ```powershell
@@ -24,9 +24,9 @@
   "mcpServers": {
     "pash-mcp-server": {
       "command": "python",
-      "args": ["D:\\Felix\\projects\\felix-mcp-standalone\\server.py"],
+      "args": ["server.py"],
       "env": {
-        "PYTHONPATH": "D:\\Felix\\projects\\felix-mcp-standalone"
+        "PYTHONPATH": "."
       }
     }
   }
